@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from PIL import Image
 from weekly_report import generate_gameweek_report
 
 FPL_BASE_URL = "https://fantasy.premierleague.com/api"
@@ -14,7 +15,15 @@ def get_team_metadata(manager_id):
     except Exception:
         return "Unknown Team", ""
 
+# Page setup
 st.set_page_config(page_title="Sir Botty Charlton", page_icon="🧠")
+
+# Load and display logo
+try:
+    logo = Image.open("sirbotty-logo.png")
+    st.image(logo, width=150)
+except FileNotFoundError:
+    st.warning("🖼️ Logo not found. Please add 'sirbotty-logo.png' to your app folder.")
 
 st.markdown("""
 # 🧠 Sir Botty Charlton
@@ -51,9 +60,7 @@ if st.button("🧠 Summon the Wisdom"):
             team_name, manager_name = get_team_metadata(manager_id)
             squad_value = round(sum([p["form"] for p in report["team_overview"]]) + 85, 1)
 
-            # 🆕 Predicted Gameweek Score
             st.markdown(f"### 🔮 Predicted Gameweek Score: **{round(report['predicted_score'], 1)}** points")
-
             st.markdown(f"### 🏷️ Team: **{team_name}**")
             st.markdown(f"#### 👤 Manager: {manager_name}")
             st.markdown(f"💰 **Estimated Squad Value**: £{squad_value}m")
@@ -114,11 +121,10 @@ if st.button("🧠 Summon the Wisdom"):
                 st.warning(f"**{alert['name']}** – {alert['message']}")
 
         chip = report.get("chip_recommendation", {})
+        st.markdown("## 🧩 Chip Strategy")
         if chip.get("recommended_chip"):
-            st.markdown("## 🧩 Chip Strategy")
             st.success(f"💡 Suggested Chip: **{chip['recommended_chip']}** — {chip['reason']}")
         else:
-            st.markdown("## 🧩 Chip Strategy")
             st.info("No chip needed. Save it for a rainy football apocalypse.")
 
         st.markdown("## 🔁 Substitution Suggestions")
