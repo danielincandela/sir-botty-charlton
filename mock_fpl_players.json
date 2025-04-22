@@ -1,0 +1,74 @@
+[
+    {
+      "id": 1,
+      "name": "Erling Haaland",
+      "team": "Man City",
+      "position": "FWD",
+      "form": 8.2,
+      "points_per_game": 7.5,
+      "expected_minutes": 90,
+      "opponent_team": "Burnley",
+      "opponent_difficulty": 2,
+      "injury_risk": false
+    },
+    {
+      "id": 2,
+      "name": "Mohamed Salah",
+      "team": "Liverpool",
+      "position": "MID",
+      "form": 7.8,
+      "points_per_game": 8.0,
+      "expected_minutes": 90,
+      "opponent_team": "Sheffield United",
+      "opponent_difficulty": 1,
+      "injury_risk": false
+    },
+    {
+      "id": 3,
+      "name": "Bukayo Saka",
+      "team": "Arsenal",
+      "position": "MID",
+      "form": 6.4,
+      "points_per_game": 7.2,
+      "expected_minutes": 85,
+      "opponent_team": "Tottenham",
+      "opponent_difficulty": 4,
+      "injury_risk": false
+    },
+    {
+      "id": 4,
+      "name": "João Pedro",
+      "team": "Brighton",
+      "position": "FWD",
+      "form": 2.1,
+      "points_per_game": 5.8,
+      "expected_minutes": 30,
+      "opponent_team": "Man United",
+      "opponent_difficulty": 4,
+      "injury_risk": true
+    },
+    {
+      "id": 5,
+      "name": "Ollie Watkins",
+      "team": "Aston Villa",
+      "position": "FWD",
+      "form": 7.0,
+      "points_per_game": 6.9,
+      "expected_minutes": 90,
+      "opponent_team": "Fulham",
+      "opponent_difficulty": 3,
+      "injury_risk": false
+    },
+    {
+      "id": 6,
+      "name": "Son Heung-min",
+      "team": "Tottenham",
+      "position": "MID",
+      "form": 3.5,
+      "points_per_game": 6.2,
+      "expected_minutes": 90,
+      "opponent_team": "Arsenal",
+      "opponent_difficulty": 4,
+      "injury_risk": false
+    }
+  ]

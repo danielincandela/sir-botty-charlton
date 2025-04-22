@@ -1,0 +1,73 @@
+{
+    "gameweek": 33,
+    "team_overview": [
+        {
+            "name": "Erling Haaland",
+            "team": "Man City",
+            "position": "FWD",
+            "form": 8.2,
+            "points_per_game": 7.5,
+            "form_trend": "\u2b06\ufe0f trending up"
+        },
+        {
+            "name": "Mohamed Salah",
+            "team": "Liverpool",
+            "position": "MID",
+            "form": 7.8,
+            "points_per_game": 8.0,
+            "form_trend": "\u2194\ufe0f stable"
+        },
+        {
+            "name": "Bukayo Saka",
+            "team": "Arsenal",
+            "position": "MID",
+            "form": 6.4,
+            "points_per_game": 7.2,
+            "form_trend": "\u2b07\ufe0f trending down"
+        },
+        {
+            "name": "Jo\u00e3o Pedro",
+            "team": "Brighton",
+            "position": "FWD",
+            "form": 2.1,
+            "points_per_game": 5.8,
+            "form_trend": "\u2b07\ufe0f trending down"
+        },
+        {
+            "name": "Ollie Watkins",
+            "team": "Aston Villa",
+            "position": "FWD",
+            "form": 7.0,
+            "points_per_game": 6.9,
+            "form_trend": "\u2194\ufe0f stable"
+        },
+        {
+            "name": "Son Heung-min",
+            "team": "Tottenham",
+            "position": "MID",
+            "form": 3.5,
+            "points_per_game": 6.2,
+            "form_trend": "\u2b07\ufe0f trending down"
+        }
+    ],
+    "captain": {
+        "name": "Erling Haaland",
+        "reason": "Erling Haaland has strong form (8.2), expected to play 90 mins, and faces a easy opponent (Burnley)."
+    },
+    "vice_captain": {
+        "name": "Mohamed Salah",
+        "reason": "Mohamed Salah has strong form (7.8), expected to play 90 mins, and faces a very easy opponent (Sheffield United)."
+    },
+    "transfer_suggestions": [
+        {
+            "out": "Son Heung-min",
+            "in": "Erling Haaland",
+            "reason": "Son Heung-min has low form (3.5) and a tough opponent (Arsenal). Meanwhile, Erling Haaland is in great form (8.2) and has a more favorable fixture."
+        },
+        {
+            "out": "Bukayo Saka",
+            "in": "Mohamed Salah",
+            "reason": "Bukayo Saka has low form (6.4) and a tough opponent (Tottenham). Meanwhile, Mohamed Salah is in great form (7.8) and has a more favorable fixture."
+        }
+    ]
+}
