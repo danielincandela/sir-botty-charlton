@@ -24,18 +24,27 @@ def get_current_gameweek():
 def enrich_players_with_fixtures(players, fixtures, current_gameweek):
     """
     Adds 'number_of_fixtures' to each player based on their team in the current gameweek.
+    Defaults to 1 fixture if fixture data is incomplete (e.g. future gameweeks).
     """
     team_fixtures = defaultdict(int)
 
-    # Count how many times each team plays in the current gameweek
-    for fixture in fixtures:
-        if fixture.get("event") != current_gameweek:
-            continue
-        team_fixtures[fixture["team_h"]] += 1
-        team_fixtures[fixture["team_a"]] += 1
+    # Guard against missing or empty fixture list for future gameweeks
+    if fixtures:
+        for fixture in fixtures:
+            if fixture.get("event") != current_gameweek:
+                continue
+            team_h = fixture.get("team_h")
+            team_a = fixture.get("team_a")
+
+            if team_h:
+                team_fixtures[team_h] += 1
+            if team_a:
+                team_fixtures[team_a] += 1
 
     for player in players:
-        player["number_of_fixtures"] = team_fixtures.get(player["team_id"], 1)
+        team_id = player.get("team_id")
+        player["number_of_fixtures"] = team_fixtures.get(team_id, 1)  # Default to 1 if team ID not found
+
     return players
 
 def calculate_predicted_gameweek_score(players):
