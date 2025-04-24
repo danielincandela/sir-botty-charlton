@@ -1,3 +1,4 @@
+
 import requests
 
 FPL_BASE_URL = "https://fantasy.premierleague.com/api"
@@ -51,10 +52,10 @@ def suggest_best_transfers_for_manager(manager_id, gameweek=34, max_transfers=3)
                 (f["team_h"], f["team_a"], f["team_a_difficulty"]),
                 (f["team_a"], f["team_h"], f["team_h_difficulty"])
             ]:
-                fixtures_by_team[team_id] = {
+                fixtures_by_team.setdefault(team_id, []).append({
                     "opponent": teams.get(opp_id, "Unknown"),
                     "difficulty": diff
-                }
+                })
 
     current_players = []
     for p in picks:
@@ -71,8 +72,8 @@ def suggest_best_transfers_for_manager(manager_id, gameweek=34, max_transfers=3)
             "team": teams[team_id],
             "form": float(player["form"]),
             "price": now_cost,
-            "opponent": fixtures_by_team.get(team_id, {}).get("opponent", "Unknown"),
-            "difficulty": fixtures_by_team.get(team_id, {}).get("difficulty", 3)
+            "opponent": fixtures_by_team.get(team_id, [{}])[0].get("opponent", "Unknown"),
+            "difficulty": fixtures_by_team.get(team_id, [{}])[0].get("difficulty", 3)
         }
         current_players.append(data)
 
@@ -87,8 +88,11 @@ def suggest_best_transfers_for_manager(manager_id, gameweek=34, max_transfers=3)
         if p["minutes"] < 60:
             continue
         team_id = p["team"]
+        fixture_count = len(fixtures_by_team.get(team_id, []))
+        if fixture_count == 0:
+            continue
         price = p["now_cost"] / 10.0
-        opp = fixtures_by_team.get(team_id, {"opponent": "Unknown", "difficulty": 3})
+        opp = fixtures_by_team.get(team_id, [{"opponent": "Unknown", "difficulty": 3}])[0]
         data = {
             "id": p["id"],
             "name": f"{p['first_name']} {p['second_name']}",

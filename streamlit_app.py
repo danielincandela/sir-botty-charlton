@@ -135,27 +135,22 @@ if st.button("🧠 Summon the Wisdom"):
             st.markdown(f"⬅️ **{t['out']}** → ➡️ **{t['in']}**")
             st.caption(t["reason"])
 
-        st.markdown("## 💸 Transfer Recommendations")
-        if report["transfer_recommendations"]:
-            for t in report["transfer_recommendations"]:
-                st.markdown(f"⬅️ **{t['out']}** → ➡️ **{t['in']}**")
-                st.caption(t["reason"])
-        else:
-            st.info("Botty sees no clear upgrades. Hold steady, soldier.")
-
         st.markdown("## 🧾 Full Squad Overview")
         sorted_squad = sorted(report["team_overview"], key=lambda x: (position_order.get(x["position"], 4), -x["form"]))
 
         for p in sorted_squad:
-            status_tag = ""
-            if p.get("double_gameweek"):
-                status_tag = "🔥 **Double Gameweek**"
-            elif p.get("blank_gameweek"):
-                status_tag = "🧊 Blank Gameweek"
+            num_fixtures = p.get("number_of_fixtures", 1)
+            if num_fixtures == 0:
+                status_tag = "🧊 No Match"
+            elif num_fixtures == 2:
+                status_tag = "🔥 Plays Twice"
+            elif num_fixtures > 2:
+                status_tag = f"🔥 Plays {num_fixtures} Times"
+            else:
+                status_tag = "✔️ Plays Once"
 
             st.markdown(f"**{p['name']}** – {p['position']} for **{p['team']}**")
-            if status_tag:
-                st.markdown(status_tag)
+            st.markdown(status_tag)
             st.caption(
                 f"Form: {p['form']} | PPG: {p['points_per_game']} | Min: {p['expected_minutes']}  \n"
                 f"xG: {p['xG']} | xA: {p['xA']} | Shots: {p['shots']}  \n"

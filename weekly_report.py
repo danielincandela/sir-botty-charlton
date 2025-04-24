@@ -18,6 +18,7 @@ from player_utils import (
 
 from fpl_team_loader import fetch_team_for_gameweek, get_team_players
 
+
 def pick_starting_xi(players):
     starting = []
     bench = []
@@ -55,11 +56,17 @@ def pick_starting_xi(players):
         "reason": f"Form {p['form']}, likely to start vs {p['opponent_team']}"
     } for p in starting_pool]
 
-    bench = [{
-        "name": p["name"],
-        "position": p["position"],
-        "reason": "Lower form or minutes, held in reserve"
-    } for p in players if p["id"] not in used_ids]
+    bench = []
+    for p in players:
+        if p["id"] in used_ids:
+            continue
+        if p.get("number_of_fixtures", 1) == 0:
+            continue
+        bench.append({
+            "name": p["name"],
+            "position": p["position"],
+            "reason": "Lower form or minutes, held in reserve"
+        })
 
     return starting, bench
 
