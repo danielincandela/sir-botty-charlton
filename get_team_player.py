@@ -7,18 +7,6 @@ def get_bootstrap_data():
     res.raise_for_status()
     return res.json()
 
-def get_fixtures():
-    res = requests.get(f"{FPL_BASE_URL}/fixtures/")
-    res.raise_for_status()
-    return res.json()
-
-def get_current_gameweek():
-    events = get_bootstrap_data()["events"]
-    for event in events:
-        if event["is_current"]:
-            return event["id"]
-    return max(e["id"] for e in events if e["is_next"])
-
 def get_manager_picks(manager_id, gameweek):
     try:
         url = f"{FPL_BASE_URL}/entry/{manager_id}/event/{gameweek}/picks/"
@@ -26,7 +14,7 @@ def get_manager_picks(manager_id, gameweek):
         res.raise_for_status()
         return res.json()
     except Exception as e:
-        print(f"❌ Error fetching picks for GW{gameweek}: {e}")
+        print(f"❌ Error fetching picks: {e}")
         return {"picks": []}
 
 def get_manager_chips(manager_id):
@@ -37,7 +25,12 @@ def get_manager_chips(manager_id):
     except:
         return []
 
-def get_team_players(manager_id, gameweek):
+def get_fixtures():
+    res = requests.get(f"{FPL_BASE_URL}/fixtures/")
+    res.raise_for_status()
+    return res.json()
+
+def get_team_players(manager_id, gameweek, target_gameweek=None):
     bootstrap = get_bootstrap_data()
     picks_data = get_manager_picks(manager_id, gameweek)
     fixtures = get_fixtures()
@@ -52,6 +45,8 @@ def get_team_players(manager_id, gameweek):
 
     for f in fixtures:
         if not f["finished"]:
+            if target_gameweek and f["event"] != target_gameweek:
+                continue
             for team_id, opponent_id, difficulty in [
                 (f["team_h"], f["team_a"], f["team_a_difficulty"]),
                 (f["team_a"], f["team_h"], f["team_h_difficulty"])
@@ -77,12 +72,11 @@ def get_team_players(manager_id, gameweek):
 
         team_id = player["team"]
         fixtures_list = team_fixtures.get(team_id, [])
-        upcoming = [f for f in fixtures_list if f["event"]]
-        is_double = len(set(f["event"] for f in upcoming)) > 1
-        is_blank = len(upcoming) == 0
+        is_double = len(set(f["event"] for f in fixtures_list)) > 1
+        is_blank = len(fixtures_list) == 0
 
-        if upcoming:
-            opponent = upcoming[0]
+        if fixtures_list:
+            opponent = fixtures_list[0]
             opponent_name = teams_info.get(opponent["opponent_id"], "Unknown")
             difficulty = opponent["difficulty"]
         else:
@@ -109,24 +103,3 @@ def get_team_players(manager_id, gameweek):
         })
 
     return team_players, chips_used, raw_ids
-
-# ✅ NEW — Fallback for future gameweeks
-def fetch_latest_valid_team(manager_id):
-    current_gw = get_current_gameweek()
-    latest_valid_team = None
-    latest_gw = current_gw
-
-    for gw in range(current_gw, 0, -1):
-        data = get_manager_picks(manager_id, gw)
-        if data.get("picks"):
-            return gw, data
-    return latest_gw, {"picks": []}
-
-def fetch_team_for_gameweek(manager_id, target_gw):
-    current_gw = get_current_gameweek()
-    if target_gw <= current_gw:
-        data = get_manager_picks(manager_id, target_gw)
-        return target_gw, data, False  # Not projected
-    else:
-        latest_gw, data = fetch_latest_valid_team(manager_id)
-        return latest_gw, data, True  # Projected team

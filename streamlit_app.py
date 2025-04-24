@@ -56,6 +56,9 @@ if st.button("🧠 Summon the Wisdom"):
     with st.spinner("Consulting the footballing ether and boiling the perfect cuppa..."):
         report = generate_gameweek_report(gameweek_number=gameweek, manager_id=st.session_state.manager_id)
 
+        if report.get("is_projected"):
+            st.warning(f"This is a projected lineup based on your last valid team from GW{report['original_gw']}.")
+
         if manager_id:
             team_name, manager_name = get_team_metadata(manager_id)
             squad_value = round(sum([p["form"] for p in report["team_overview"]]) + 85, 1)

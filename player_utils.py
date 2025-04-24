@@ -23,27 +23,50 @@ def get_current_gameweek():
 
 def enrich_players_with_fixtures(players, fixtures, current_gameweek):
     """
-    Adds 'number_of_fixtures' to each player based on their team in the current gameweek.
+    Adds 'number_of_fixtures', 'opponent_team', and 'opponent_difficulty' to each player
+    based on their team in the current gameweek.
     Defaults to 1 fixture if fixture data is incomplete (e.g. future gameweeks).
     """
-    team_fixtures = defaultdict(int)
+    team_fixture_count = defaultdict(int)
+    team_fixtures = defaultdict(list)
 
-    # Guard against missing or empty fixture list for future gameweeks
-    if fixtures:
-        for fixture in fixtures:
-            if fixture.get("event") != current_gameweek:
-                continue
-            team_h = fixture.get("team_h")
-            team_a = fixture.get("team_a")
+    # Fetch team names for enrichment
+    bootstrap = requests.get(FPL_BOOTSTRAP_URL).json()
+    team_names = {team["id"]: team["name"] for team in bootstrap["teams"]}
 
-            if team_h:
-                team_fixtures[team_h] += 1
-            if team_a:
-                team_fixtures[team_a] += 1
+    for fixture in fixtures:
+        if fixture.get("event") != current_gameweek:
+            continue
+        team_h = fixture.get("team_h")
+        team_a = fixture.get("team_a")
+
+        if team_h:
+            team_fixture_count[team_h] += 1
+            team_fixtures[team_h].append({
+                "opponent": team_a,
+                "difficulty": fixture.get("team_a_difficulty", 3)
+            })
+
+        if team_a:
+            team_fixture_count[team_a] += 1
+            team_fixtures[team_a].append({
+                "opponent": team_h,
+                "difficulty": fixture.get("team_h_difficulty", 3)
+            })
 
     for player in players:
         team_id = player.get("team_id")
-        player["number_of_fixtures"] = team_fixtures.get(team_id, 1)  # Default to 1 if team ID not found
+        fixtures_for_team = team_fixtures.get(team_id, [])
+        player["number_of_fixtures"] = len(fixtures_for_team)
+
+        if fixtures_for_team:
+            first_fixture = fixtures_for_team[0]
+            opp_team_id = first_fixture["opponent"]
+            player["opponent_team"] = team_names.get(opp_team_id, "Unknown")
+            player["opponent_difficulty"] = first_fixture["difficulty"]
+        else:
+            player["opponent_team"] = "No match"
+            player["opponent_difficulty"] = 0
 
     return players
 

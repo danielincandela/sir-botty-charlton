@@ -8,7 +8,7 @@ from data_enrichment import (
     fetch_premier_injuries,
     enrich_player_data
 )
-from transfer_optimizer import suggest_best_transfers
+from transfer_optimizer import suggest_best_transfers_for_manager
 
 from player_utils import (
     fetch_fixtures,
@@ -16,24 +16,19 @@ from player_utils import (
     calculate_predicted_gameweek_score
 )
 
-try:
-    from fpl_team_loader import get_team_players
-except ImportError:
-    get_team_players = None
+from fpl_team_loader import fetch_team_for_gameweek, get_team_players
 
 def pick_starting_xi(players):
     starting = []
     bench = []
     pos_buckets = {"GK": [], "DEF": [], "MID": [], "FWD": []}
 
-    # Group and sort by position + form
     for player in players:
         pos_buckets[player["position"]].append(player)
 
     for pos in pos_buckets:
         pos_buckets[pos].sort(key=lambda p: (-p["form"], -p["expected_minutes"]))
 
-    # Step 1: Pick required minimums
     gks = pos_buckets["GK"][:1]
     defs = pos_buckets["DEF"][:3]
     mids = pos_buckets["MID"][:2]
@@ -42,7 +37,6 @@ def pick_starting_xi(players):
     starting_pool = gks + defs + mids + fwds
     used_ids = {p["id"] for p in starting_pool}
 
-    # Step 2: Fill remaining 4 with best available DEF/MID/FWD
     remaining = []
     for pos in ["DEF", "MID", "FWD"]:
         for p in pos_buckets[pos]:
@@ -55,7 +49,6 @@ def pick_starting_xi(players):
         starting_pool.append(next_best)
         used_ids.add(next_best["id"])
 
-    # Finalize lists
     starting = [{
         "name": p["name"],
         "position": p["position"],
@@ -94,16 +87,15 @@ def detect_alerts(players):
     return alerts
 
 def generate_gameweek_report(gameweek_number=33, manager_id=None):
-    players = []
-    chips_used = []
-    current_team_ids = []
+    is_projected = False
+    gw_used = gameweek_number
+    players, chips_used, current_team_ids = [], [], []
 
-    if manager_id and get_team_players:
+    if manager_id:
         try:
-            players, chips_used, current_team_ids = get_team_players(manager_id, gameweek_number)
-            if not players:
-                raise ValueError("No players returned. Falling back to mock data.")
-            print(f"✅ Loaded real FPL team for Manager ID {manager_id}")
+            gw_used, _, is_projected = fetch_team_for_gameweek(manager_id, gameweek_number)
+            players, chips_used, current_team_ids = get_team_players(manager_id, gw_used)
+            print(f"✅ Loaded FPL team for Manager ID {manager_id} (GW{gw_used})")
         except Exception as e:
             print(f"⚠️ Falling back to mock data: {e}")
             players = load_mock_players()
@@ -115,28 +107,33 @@ def generate_gameweek_report(gameweek_number=33, manager_id=None):
         chips_used = ["wildcard"]
         current_team_ids = [p["id"] for p in players]
 
-    # Enrich players with external data
     understat = fetch_understat_data()
     injuries = fetch_premier_injuries()
     players = enrich_player_data(players, understat, injuries)
 
-    # Add trends, captain pick, transfers
     players_with_trends = analyze_form_trends(players)
-    captains = pick_captains(players_with_trends)
-    transfers = suggest_transfers(players_with_trends)
-    starting_xi, bench = pick_starting_xi(players_with_trends)
-    alerts = detect_alerts(players_with_trends)
-    chip_recommendation = evaluate_chip_strategy(players_with_trends, chips_used, gameweek_number)
-    chip_recommendation["chips_used"] = chips_used
-    transfer_recommendations = suggest_best_transfers(current_team_ids, budget=2.0, max_transfers=3)
-
-    # ✅ Use the actual gameweek being analyzed — not the "current" one
     fixtures = fetch_fixtures()
     enriched_players = enrich_players_with_fixtures(players_with_trends, fixtures, gameweek_number)
+
+    # Recalculate suggestions and output using the target gameweek context
+    captains = pick_captains(enriched_players)
+    transfers = suggest_transfers(enriched_players)
+    starting_xi, bench = pick_starting_xi(enriched_players)
+    alerts = detect_alerts(enriched_players)
+    chip_recommendation = evaluate_chip_strategy(enriched_players, chips_used, gameweek_number)
+    chip_recommendation["chips_used"] = chips_used
+
+    # 🧠 Use the upgraded manager-based optimizer
+    transfer_recommendations = suggest_best_transfers_for_manager(
+        manager_id, gameweek=gameweek_number, max_transfers=3
+    )
+
     predicted_score = calculate_predicted_gameweek_score(enriched_players)
 
     report = {
         "gameweek": gameweek_number,
+        "original_gw": gw_used if is_projected else gameweek_number,
+        "is_projected": is_projected,
         "team_overview": [
             {
                 "id": p["id"],

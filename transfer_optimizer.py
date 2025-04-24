@@ -7,75 +7,114 @@ def get_bootstrap_data():
     res.raise_for_status()
     return res.json()
 
-def suggest_best_transfers(current_team_ids, budget=2.0, max_transfers=3):
+def get_fixtures():
+    res = requests.get(f"{FPL_BASE_URL}/fixtures/")
+    res.raise_for_status()
+    return res.json()
+
+def get_manager_data(manager_id):
+    res = requests.get(f"{FPL_BASE_URL}/entry/{manager_id}/")
+    res.raise_for_status()
+    return res.json()
+
+def get_manager_picks(manager_id, gameweek):
+    url = f"{FPL_BASE_URL}/entry/{manager_id}/event/{gameweek}/picks/"
+    res = requests.get(url)
+    if res.status_code == 404:
+        print(f"⚠️ No picks for GW{gameweek}. Falling back to GW{gameweek - 1}...")
+        fallback_url = f"{FPL_BASE_URL}/entry/{manager_id}/event/{gameweek - 1}/picks/"
+        fallback_res = requests.get(fallback_url)
+        fallback_res.raise_for_status()
+        return fallback_res.json()
+    res.raise_for_status()
+    return res.json()
+
+def suggest_best_transfers_for_manager(manager_id, gameweek=34, max_transfers=3):
+    print("🧠 Running universal transfer optimizer...")
     bootstrap = get_bootstrap_data()
-    all_players = bootstrap["elements"]
+    fixtures = get_fixtures()
+    picks_data = get_manager_picks(manager_id, gameweek)
+    manager_data = get_manager_data(manager_id)
+
+    bank = manager_data.get("bank", 0) / 10.0
+    picks = picks_data.get("picks", [])
+
+    elements = bootstrap["elements"]
     teams = {t["id"]: t["name"] for t in bootstrap["teams"]}
     positions = {p["id"]: p["singular_name_short"] for p in bootstrap["element_types"]}
+    elements_by_id = {p["id"]: p for p in elements}
 
-    current_ids = set(current_team_ids)
+    fixtures_by_team = {}
+    for f in fixtures:
+        if f["event"] == gameweek:
+            for team_id, opp_id, diff in [
+                (f["team_h"], f["team_a"], f["team_a_difficulty"]),
+                (f["team_a"], f["team_h"], f["team_h_difficulty"])
+            ]:
+                fixtures_by_team[team_id] = {
+                    "opponent": teams.get(opp_id, "Unknown"),
+                    "difficulty": diff
+                }
 
-    # Build full external candidate pool
+    current_players = []
+    for p in picks:
+        player_id = p["element"]
+        player = elements_by_id.get(player_id)
+        if not player:
+            continue
+        team_id = player["team"]
+        now_cost = player["now_cost"] / 10.0
+        data = {
+            "id": player_id,
+            "name": f"{player['first_name']} {player['second_name']}",
+            "position": positions[player["element_type"]],
+            "team": teams[team_id],
+            "form": float(player["form"]),
+            "price": now_cost,
+            "opponent": fixtures_by_team.get(team_id, {}).get("opponent", "Unknown"),
+            "difficulty": fixtures_by_team.get(team_id, {}).get("difficulty", 3)
+        }
+        current_players.append(data)
+
     external_pool = []
-    for p in all_players:
+    current_ids = set(p["element"] for p in picks)
+
+    for p in elements:
         if p["id"] in current_ids:
             continue
         if p["status"] not in ["a", "d"]:
             continue
-        if p["minutes"] < 90:
+        if p["minutes"] < 60:
             continue
-        external_pool.append({
+        team_id = p["team"]
+        price = p["now_cost"] / 10.0
+        opp = fixtures_by_team.get(team_id, {"opponent": "Unknown", "difficulty": 3})
+        data = {
             "id": p["id"],
             "name": f"{p['first_name']} {p['second_name']}",
-            "team": teams[p["team"]],
             "position": positions[p["element_type"]],
-            "price": p["now_cost"] / 10,
+            "team": teams[team_id],
             "form": float(p["form"]),
-            "ppg": float(p["points_per_game"]),
-            "score": float(p["form"]) + float(p["points_per_game"]) + (float(p["form"]) * 0.55),
-        })
+            "price": price,
+            "opponent": opp["opponent"],
+            "difficulty": opp["difficulty"]
+        }
+        external_pool.append(data)
 
-    # Sort by smart score
-    external_pool.sort(key=lambda p: p["score"], reverse=True)
-
-    # Get current squad by position
-    current_players = [p for p in all_players if p["id"] in current_ids]
-    current_by_position = {}
-    for p in current_players:
-        pos = positions[p["element_type"]]
-        current_by_position.setdefault(pos, []).append({
-            "id": p["id"],
-            "name": f"{p['first_name']} {p['second_name']}",
-            "form": float(p["form"]),
-            "price": p["now_cost"] / 10,
-            "position": pos
-        })
-
-    # Recommend up to 3 upgrades
     recommendations = []
-    used_out_ids = set()
-
-    for new_player in external_pool:
+    for out_player in sorted(current_players, key=lambda x: (x["form"], -x["difficulty"], x["price"])):
+        for in_player in sorted(external_pool, key=lambda x: (-x["form"], x["difficulty"], x["price"])):
+            if in_player["position"] != out_player["position"]:
+                continue
+            if in_player["price"] <= out_player["price"] + bank:
+                if in_player["form"] > out_player["form"]:
+                    recommendations.append({
+                        "out": out_player["name"],
+                        "in": in_player["name"],
+                        "reason": f"Upgrade {out_player['form']} → {in_player['form']}, vs {in_player['opponent']} (Diff {in_player['difficulty']})"
+                    })
+                    break
         if len(recommendations) >= max_transfers:
             break
-
-        pos = new_player["position"]
-        candidates = current_by_position.get(pos, [])
-
-        # Try replacing the weakest option in this position
-        for old_player in sorted(candidates, key=lambda p: p["form"]):
-            if old_player["id"] in used_out_ids:
-                continue
-
-            price_diff = new_player["price"] - old_player["price"]
-            if price_diff <= budget and new_player["form"] > old_player["form"] + 1:
-                recommendations.append({
-                    "out": old_player["name"],
-                    "in": new_player["name"],
-                    "reason": f"{pos} upgrade: Form {old_player['form']} → {new_player['form']}, price +£{price_diff:.1f}"
-                })
-                budget -= max(0, price_diff)
-                used_out_ids.add(old_player["id"])
-                break
 
     return recommendations
